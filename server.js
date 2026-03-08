@@ -5,7 +5,7 @@
 
 // const app = express();
 // app.use(express.json());
-// app.use(cors());
+// app.use(cors({origin:'*',credentials:true}));
 
 // const otpStorage = new Map();
 // const users = new Map();
@@ -179,7 +179,7 @@
 // const connectDB = require('./config/db'); 
 // const app = express();
 // connectDB();
-// app.use(cors());
+// app.use(cors({origin:'*',credentials:true}));
 // app.use(express.json());
 
 // const musicRoutes = require('./routes/musicRoutes');
@@ -310,7 +310,7 @@ const app = express();
 // ✅ MongoDB Connect
 connectDB();
 
-app.use(cors());
+app.use(cors({origin:'*',credentials:true}));
 app.use(express.json());
 
 // ✅ Routes
