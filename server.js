@@ -164,7 +164,7 @@
 //   console.log(`
 // ╔════════════════════════════════════╗
 // ║   ✅ Backend Running!             ║
-// ║   📍 http://localhost:5000        ║
+// ║   📍 https://ambimood-backend-2.onrender.com        ║
 // ╚════════════════════════════════════╝
 //   `);
 // });
