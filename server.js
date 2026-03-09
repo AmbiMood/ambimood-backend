@@ -318,7 +318,7 @@ app.use(express.json());
 const authRoutes = require('./routes/authuRoutes');
 const musicRoutes = require('./routes/musicRoutes');
 
-app.use('/api/auth', authRoutes);
+app.use('/api', authRoutes);
 app.use('/api/music', musicRoutes);
 
 app.get('/api/health', (req, res) => { res.json({status:'ok'}); });
