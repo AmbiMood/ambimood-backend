@@ -282,7 +282,8 @@
 // });
 
 // // ✅ Test route
-// app.get('/', (req, res) => {
+// app.get('/api/health', (req, res) => { res.json({status:'ok'}); });
+app.get('/', (req, res) => {
 //   res.json({ message: '🎵 AMBI MOOD Backend Running!' });
 // });
 
@@ -320,6 +321,7 @@ const musicRoutes = require('./routes/musicRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/music', musicRoutes);
 
+app.get('/api/health', (req, res) => { res.json({status:'ok'}); });
 app.get('/', (req, res) => {
   res.json({ message: '🎵 AMBI MOOD Backend Running!' });
 });
