@@ -231,6 +231,117 @@
 
 
 
+// const bcrypt = require('bcryptjs');
+// const nodemailer = require('nodemailer');
+// const User = require('../models/user');
+// require('dotenv').config();
+
+// const otpStorage = new Map();
+
+// const transporter = nodemailer.createTransport({
+//   service: 'gmail',
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS
+//   }
+// });
+
+// function generateOTP() {
+//   return Math.floor(100000 + Math.random() * 900000).toString();
+// }
+
+// const signup = async (req, res) => {
+//   const { name, email, password } = req.body;
+//   try {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) return res.status(400).json({ message: 'User already exists!' });
+
+//     const otp = generateOTP();
+//     otpStorage.set(email, { otp, name, password, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+//     await transporter.sendMail({
+//       from: process.env.EMAIL_USER,
+//       to: email,
+//       subject: 'AMBI MOOD - Verify Your Email',
+//       html: `<div style="font-family:Arial;padding:30px;">
+//         <h1 style="color:#8b5cf6;">AMBI MOOD 🎵</h1>
+//         <p>Welcome ${name}! Your OTP is:</p>
+//         <h1 style="color:#8b5cf6;font-size:48px;letter-spacing:10px;">${otp}</h1>
+//         <p>Expires in 5 minutes.</p>
+//       </div>`
+//     });
+
+//     res.json({ message: 'OTP sent!', email });
+//   } catch (error) {
+//     console.error('Signup error:', error);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// const verifyOTP = async (req, res) => {
+//   const { email, otp } = req.body;
+//   try {
+//     const stored = otpStorage.get(email);
+//     if (!stored) return res.status(400).json({ message: 'OTP not found!' });
+//     if (Date.now() > stored.expiresAt) {
+//       otpStorage.delete(email);
+//       return res.status(400).json({ message: 'OTP expired!' });
+//     }
+//     if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP!' });
+
+//     const hashedPassword = await bcrypt.hash(stored.password, 10);
+//     const newUser = new User({ name: stored.name, email, password: hashedPassword, verified: true });
+//     await newUser.save();
+//     otpStorage.delete(email);
+
+//     res.json({ message: 'Signup successful!', user: { name: stored.name, email } });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// const login = async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(400).json({ message: 'User not found!' });
+//     if (!user.verified) return res.status(400).json({ message: 'Please verify your email!' });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(400).json({ message: 'Wrong password!' });
+
+//     res.json({ message: 'Login successful!', user: { name: user.name, email: user.email } });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// const resendOTP = async (req, res) => {
+//   const { email } = req.body;
+//   try {
+//     const stored = otpStorage.get(email);
+//     if (!stored) return res.status(400).json({ message: 'No pending signup!' });
+
+//     const newOTP = generateOTP();
+//     otpStorage.set(email, { ...stored, otp: newOTP, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+//     await transporter.sendMail({
+//       from: process.env.EMAIL_USER,
+//       to: email,
+//       subject: 'AMBI MOOD - New OTP',
+//       html: `<h2>Your new OTP: <strong style="color:#8b5cf6;">${newOTP}</strong></h2>`
+//     });
+
+//     res.json({ message: 'New OTP sent!' });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// module.exports = { signup, verifyOTP, login, resendOTP };
+
+
+
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const User = require('../models/user');
@@ -239,10 +350,12 @@ require('dotenv').config();
 const otpStorage = new Map();
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.BREVO_HOST,
+  port: parseInt(process.env.BREVO_PORT),
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    user: process.env.BREVO_USER,
+    pass: process.env.BREVO_PASS
   }
 });
 
@@ -255,12 +368,10 @@ const signup = async (req, res) => {
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: 'User already exists!' });
-
     const otp = generateOTP();
     otpStorage.set(email, { otp, name, password, expiresAt: Date.now() + 5 * 60 * 1000 });
-
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: '"AMBI MOOD" <a47655001@smtp-brevo.com>',
       to: email,
       subject: 'AMBI MOOD - Verify Your Email',
       html: `<div style="font-family:Arial;padding:30px;">
@@ -270,7 +381,6 @@ const signup = async (req, res) => {
         <p>Expires in 5 minutes.</p>
       </div>`
     });
-
     res.json({ message: 'OTP sent!', email });
   } catch (error) {
     console.error('Signup error:', error);
@@ -288,12 +398,10 @@ const verifyOTP = async (req, res) => {
       return res.status(400).json({ message: 'OTP expired!' });
     }
     if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP!' });
-
     const hashedPassword = await bcrypt.hash(stored.password, 10);
     const newUser = new User({ name: stored.name, email, password: hashedPassword, verified: true });
     await newUser.save();
     otpStorage.delete(email);
-
     res.json({ message: 'Signup successful!', user: { name: stored.name, email } });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -306,10 +414,8 @@ const login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: 'User not found!' });
     if (!user.verified) return res.status(400).json({ message: 'Please verify your email!' });
-
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Wrong password!' });
-
     res.json({ message: 'Login successful!', user: { name: user.name, email: user.email } });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -321,17 +427,14 @@ const resendOTP = async (req, res) => {
   try {
     const stored = otpStorage.get(email);
     if (!stored) return res.status(400).json({ message: 'No pending signup!' });
-
     const newOTP = generateOTP();
     otpStorage.set(email, { ...stored, otp: newOTP, expiresAt: Date.now() + 5 * 60 * 1000 });
-
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: '"AMBI MOOD" <a47655001@smtp-brevo.com>',
       to: email,
       subject: 'AMBI MOOD - New OTP',
       html: `<h2>Your new OTP: <strong style="color:#8b5cf6;">${newOTP}</strong></h2>`
     });
-
     res.json({ message: 'New OTP sent!' });
   } catch (error) {
     res.status(500).json({ message: error.message });
