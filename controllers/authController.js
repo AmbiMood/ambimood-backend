@@ -343,25 +343,27 @@
 
 
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require('@getbrevo/brevo');
 const User = require('../models/user');
 require('dotenv').config();
 
 const otpStorage = new Map();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_HOST,
-  port: parseInt(process.env.BREVO_PORT),
-  secure: false,
-  auth: {
-    user: process.env.BREVO_USER,
-    pass: process.env.BREVO_PASS
-  }
-});
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+apiInstance.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY;
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+const sendEmail = async (to, subject, html) => {
+  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+  sendSmtpEmail.subject = subject;
+  sendSmtpEmail.htmlContent = html;
+  sendSmtpEmail.sender = { name: 'AMBI MOOD', email: 'ambimood2026@gmail.com' };
+  sendSmtpEmail.to = [{ email: to }];
+  return apiInstance.sendTransacEmail(sendSmtpEmail);
+};
 
 const signup = async (req, res) => {
   const { name, email, password } = req.body;
@@ -370,17 +372,14 @@ const signup = async (req, res) => {
     if (existingUser) return res.status(400).json({ message: 'User already exists!' });
     const otp = generateOTP();
     otpStorage.set(email, { otp, name, password, expiresAt: Date.now() + 5 * 60 * 1000 });
-    await transporter.sendMail({
-      from: '"AMBI MOOD" <a47655001@smtp-brevo.com>',
-      to: email,
-      subject: 'AMBI MOOD - Verify Your Email',
-      html: `<div style="font-family:Arial;padding:30px;">
+    await sendEmail(email, 'AMBI MOOD - Verify Your Email',
+      `<div style="font-family:Arial;padding:30px;">
         <h1 style="color:#8b5cf6;">AMBI MOOD 🎵</h1>
         <p>Welcome ${name}! Your OTP is:</p>
         <h1 style="color:#8b5cf6;font-size:48px;letter-spacing:10px;">${otp}</h1>
         <p>Expires in 5 minutes.</p>
       </div>`
-    });
+    );
     res.json({ message: 'OTP sent!', email });
   } catch (error) {
     console.error('Signup error:', error);
@@ -429,12 +428,9 @@ const resendOTP = async (req, res) => {
     if (!stored) return res.status(400).json({ message: 'No pending signup!' });
     const newOTP = generateOTP();
     otpStorage.set(email, { ...stored, otp: newOTP, expiresAt: Date.now() + 5 * 60 * 1000 });
-    await transporter.sendMail({
-      from: '"AMBI MOOD" <a47655001@smtp-brevo.com>',
-      to: email,
-      subject: 'AMBI MOOD - New OTP',
-      html: `<h2>Your new OTP: <strong style="color:#8b5cf6;">${newOTP}</strong></h2>`
-    });
+    await sendEmail(email, 'AMBI MOOD - New OTP',
+      `<h2>Your new OTP: <strong style="color:#8b5cf6;">${newOTP}</strong></h2>`
+    );
     res.json({ message: 'New OTP sent!' });
   } catch (error) {
     res.status(500).json({ message: error.message });
