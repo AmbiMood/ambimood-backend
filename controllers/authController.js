@@ -342,27 +342,153 @@
 
 
 
+// const bcrypt = require('bcryptjs');
+// const SibApiV3Sdk = require('@getbrevo/brevo');
+// const User = require('../models/user');
+// require('dotenv').config();
+
+// const otpStorage = new Map();
+
+// const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+// apiInstance.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY;
+
+// function generateOTP() {
+//   return Math.floor(100000 + Math.random() * 900000).toString();
+// }
+
+// const sendEmail = async (to, subject, html) => {
+//   const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+//   sendSmtpEmail.subject = subject;
+//   sendSmtpEmail.htmlContent = html;
+//   sendSmtpEmail.sender = { name: 'AMBI MOOD', email: 'ambimood2026@gmail.com' };
+//   sendSmtpEmail.to = [{ email: to }];
+//   return apiInstance.sendTransacEmail(sendSmtpEmail);
+// };
+
+// const signup = async (req, res) => {
+//   const { name, email, password } = req.body;
+//   try {
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) return res.status(400).json({ message: 'User already exists!' });
+//     const otp = generateOTP();
+//     otpStorage.set(email, { otp, name, password, expiresAt: Date.now() + 5 * 60 * 1000 });
+//     await sendEmail(email, 'AMBI MOOD - Verify Your Email',
+//       `<div style="font-family:Arial;padding:30px;">
+//         <h1 style="color:#8b5cf6;">AMBI MOOD 🎵</h1>
+//         <p>Welcome ${name}! Your OTP is:</p>
+//         <h1 style="color:#8b5cf6;font-size:48px;letter-spacing:10px;">${otp}</h1>
+//         <p>Expires in 5 minutes.</p>
+//       </div>`
+//     );
+//     res.json({ message: 'OTP sent!', email });
+//   } catch (error) {
+//     console.error('Signup error:', error);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// const verifyOTP = async (req, res) => {
+//   const { email, otp } = req.body;
+//   try {
+//     const stored = otpStorage.get(email);
+//     if (!stored) return res.status(400).json({ message: 'OTP not found!' });
+//     if (Date.now() > stored.expiresAt) {
+//       otpStorage.delete(email);
+//       return res.status(400).json({ message: 'OTP expired!' });
+//     }
+//     if (stored.otp !== otp) return res.status(400).json({ message: 'Invalid OTP!' });
+//     const hashedPassword = await bcrypt.hash(stored.password, 10);
+//     const newUser = new User({ name: stored.name, email, password: hashedPassword, verified: true });
+//     await newUser.save();
+//     otpStorage.delete(email);
+//     res.json({ message: 'Signup successful!', user: { name: stored.name, email } });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// const login = async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(400).json({ message: 'User not found!' });
+//     if (!user.verified) return res.status(400).json({ message: 'Please verify your email!' });
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(400).json({ message: 'Wrong password!' });
+//     res.json({ message: 'Login successful!', user: { name: user.name, email: user.email } });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// const resendOTP = async (req, res) => {
+//   const { email } = req.body;
+//   try {
+//     const stored = otpStorage.get(email);
+//     if (!stored) return res.status(400).json({ message: 'No pending signup!' });
+//     const newOTP = generateOTP();
+//     otpStorage.set(email, { ...stored, otp: newOTP, expiresAt: Date.now() + 5 * 60 * 1000 });
+//     await sendEmail(email, 'AMBI MOOD - New OTP',
+//       `<h2>Your new OTP: <strong style="color:#8b5cf6;">${newOTP}</strong></h2>`
+//     );
+//     res.json({ message: 'New OTP sent!' });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+// module.exports = { signup, verifyOTP, login, resendOTP };
+
+
+
 const bcrypt = require('bcryptjs');
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const https = require('https');
 const User = require('../models/user');
 require('dotenv').config();
 
 const otpStorage = new Map();
 
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-apiInstance.authentications['apiKey'].apiKey = process.env.BREVO_API_KEY;
-
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-const sendEmail = async (to, subject, html) => {
-  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  sendSmtpEmail.subject = subject;
-  sendSmtpEmail.htmlContent = html;
-  sendSmtpEmail.sender = { name: 'AMBI MOOD', email: 'ambimood2026@gmail.com' };
-  sendSmtpEmail.to = [{ email: to }];
-  return apiInstance.sendTransacEmail(sendSmtpEmail);
+const sendBrevoEmail = (to, subject, html) => {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      sender: { name: 'AMBI MOOD', email: 'ambimood2026@gmail.com' },
+      to: [{ email: to }],
+      subject: subject,
+      htmlContent: html
+    });
+
+    const options = {
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+        'content-type': 'application/json',
+        'content-length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(JSON.parse(body));
+        } else {
+          reject(new Error(`Brevo error: ${body}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
 };
 
 const signup = async (req, res) => {
@@ -372,7 +498,7 @@ const signup = async (req, res) => {
     if (existingUser) return res.status(400).json({ message: 'User already exists!' });
     const otp = generateOTP();
     otpStorage.set(email, { otp, name, password, expiresAt: Date.now() + 5 * 60 * 1000 });
-    await sendEmail(email, 'AMBI MOOD - Verify Your Email',
+    await sendBrevoEmail(email, 'AMBI MOOD - Verify Your Email',
       `<div style="font-family:Arial;padding:30px;">
         <h1 style="color:#8b5cf6;">AMBI MOOD 🎵</h1>
         <p>Welcome ${name}! Your OTP is:</p>
@@ -428,7 +554,7 @@ const resendOTP = async (req, res) => {
     if (!stored) return res.status(400).json({ message: 'No pending signup!' });
     const newOTP = generateOTP();
     otpStorage.set(email, { ...stored, otp: newOTP, expiresAt: Date.now() + 5 * 60 * 1000 });
-    await sendEmail(email, 'AMBI MOOD - New OTP',
+    await sendBrevoEmail(email, 'AMBI MOOD - New OTP',
       `<h2>Your new OTP: <strong style="color:#8b5cf6;">${newOTP}</strong></h2>`
     );
     res.json({ message: 'New OTP sent!' });
